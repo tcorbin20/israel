@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISRAEL 360 | Interactive Travel & Booking Engine</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js for 3D graphics -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;600;800&family=Cinzel:wght@600;700;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --accent-gold: #e6c687;
+            --accent-blue: #0066ff;
+            --bg-dark: #070913;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: var(--bg-dark);
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .font-cinzel { font-family: 'Cinzel', serif; }
+
+        /* Glassmorphism Styling */
+        .glass-card {
+            background: rgba(18, 24, 43, 0.75);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-nav {
+            background: rgba(7, 9, 19, 0.88);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-modal {
+            background: rgba(11, 15, 29, 0.95);
+            backdrop-filter: blur(24px);
+            border: 1px solid rgba(230, 198, 135, 0.25);
+        }
+
+        /* Gradients & Glows */
+        .text-gradient-gold {
+            background: linear-gradient(135deg, #ffffff 0%, #e6c687 50%, #b89343 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .text-gradient-blue {
+            background: linear-gradient(135deg, #60a5fa 0%, #0066ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .glow-blue { box-shadow: 0 0 35px rgba(0, 102, 255, 0.35); }
+        .glow-gold { box-shadow: 0 0 35px rgba(230, 198, 135, 0.25); }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #070913; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #0066ff; }
+    </style>
+</head>
+<body class="selection:bg-blue-600 selection:text-white">
+
+    <!-- 3D Canvas Background -->
+    <div id="canvas-container" class="fixed inset-0 z-0 pointer-events-none opacity-40"></div>
+
+    <!-- Navigation Header -->
+    <nav class="fixed top-0 left-0 right-0 z-40 glass-nav px-6 md:px-12 py-4 transition-all duration-300">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <a href="#hero" class="flex items-center space-x-3 group">
+                <span class="font-cinzel text-2xl font-black tracking-widest text-gradient-gold group-hover:scale-105 transition-transform">ISRAEL</span>
+                <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 tracking-wider">360° PORTAL</span>
+            </a>
+            
+            <div class="hidden lg:flex space-x-8 text-xs font-bold tracking-widest uppercase">
+                <a href="#destinations" class="hover:text-amber-300 transition-colors">Destinations</a>
+                <a href="#weather-widget" class="hover:text-amber-300 transition-colors">Live Weather</a>
+                <a href="#planner" class="hover:text-amber-300 transition-colors">AI Itinerary Builder</a>
+                <a href="#booking-widget" class="hover:text-amber-300 transition-colors">Book Travel</a>
+            </div>
+
+            <!-- Currency Selector & Direct Action -->
+            <div class="flex items-center gap-4">
+                <select id="currency-selector" onchange="updateCurrency(this.value)" class="bg-slate-900 border border-white/10 text-xs text-amber-300 font-bold rounded-lg px-2.5 py-1.5 focus:outline-none">
+                    <option value="USD">USD ($)</option>
+                    <option value="EUR">EUR (€)</option>
+                    <option value="ILS">ILS (₪)</option>
+                </select>
+                
+                <button onclick="openBookingModal('Israel Travel')" class="px-5 py-2 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-bold text-xs tracking-wider uppercase transition-all duration-300 transform hover:scale-105 glow-blue flex items-center gap-2">
+                    <span>Plan Trip</span>
+                    <i data-lucide="compass" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero" class="relative z-10 min-h-screen flex items-center justify-center pt-24 px-6">
+        <div class="text-center max-w-4xl mx-auto space-y-8">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full glass-card text-xs font-semibold tracking-wider uppercase text-amber-300 border border-amber-500/30 shadow-lg">
+                <i data-lucide="sparkles" class="w-4 h-4 text-amber-400"></i> Next-Gen Travel & Booking Portal
+            </div>
+            <h1 class="font-cinzel text-5xl md:text-8xl font-black text-gradient-gold tracking-tight leading-none">
+                EXPLORE ISRAEL
+            </h1>
+            <p class="text-base md:text-xl text-slate-300 font-light max-w-2xl mx-auto leading-relaxed">
+                Seamlessly discover 4,000 years of history, Mediterranean luxury, dynamic weather forecasts, and real-time travel booking engines.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
+                <a href="#planner" class="w-full sm:w-auto px-8 py-4 rounded-full bg-blue-600 hover:bg-blue-500 font-bold text-xs tracking-wider uppercase transition-all transform hover:-translate-y-1 glow-blue flex items-center justify-center gap-2">
+                    Build Custom Route <i data-lucide="sliders" class="w-4 h-4"></i>
+                </a>
+                <button onclick="openVideoModal()" class="w-full sm:w-auto px-8 py-4 rounded-full glass-card hover:bg-white/10 font-bold text-xs tracking-wider uppercase transition-all flex items-center justify-center gap-2 border border-white/10">
+                    <i data-lucide="play-circle" class="w-4 h-4 text-amber-400"></i> Virtual Tour
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Live Weather API Section -->
+    <section id="weather-widget" class="relative z-10 py-12 px-6 max-w-7xl mx-auto">
+        <div class="glass-card p-8 rounded-3xl border border-white/10 space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div>
+                    <h3 class="font-cinzel text-2xl font-bold text-gradient-gold flex items-center gap-2">
+                        <i data-lucide="cloud-sun" class="w-6 h-6 text-amber-400"></i> Real-Time Regional Weather
+                    </h3>
+                    <p class="text-xs text-slate-400">Live meteorological data provided via Open-Meteo API</p>
+                </div>
+                <button onclick="fetchLiveWeather()" class="px-4 py-2 rounded-xl bg-blue-600/30 hover:bg-blue-600 text-xs font-bold text-blue-300 hover:text-white transition-all border border-blue-500/30 flex items-center gap-2 self-start sm:self-auto">
+                    <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Refresh Forecast
+                </button>
+            </div>
+
+            <!-- Weather Grid -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4" id="weather-cards-container">
+                <!-- Weather Cards Populated via JS -->
+                <div class="p-4 glass-card rounded-2xl animate-pulse text-center space-y-2">
+                    <div class="h-4 bg-slate-800 rounded w-1/2 mx-auto"></div>
+                    <div class="h-8 bg-slate-800 rounded w-3/4 mx-auto"></div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive AI Itinerary Planner -->
+    <section id="planner" class="relative z-10 py-16 px-6 max-w-7xl mx-auto">
+        <div class="glass-card p-8 md:p-12 rounded-3xl border border-amber-500/30 space-y-8">
+            <div class="text-center max-w-2xl mx-auto space-y-2">
+                <span class="px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest bg-amber-500/20 text-amber-300 border border-amber-500/30">Interactive Engine</span>
+                <h3 class="font-cinzel text-3xl font-bold text-gradient-gold">Custom Itinerary Generator</h3>
+                <p class="text-xs text-slate-300">Select your travel parameters to generate an interactive route with direct booking links.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Duration</label>
+                    <select id="plan-days" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none">
+                        <option value="3">3 Days (Express)</option>
+                        <option value="7" selected>7 Days (Highlights)</option>
+                        <option value="10">10 Days (Comprehensive)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Primary Focus</label>
+                    <select id="plan-focus" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none">
+                        <option value="culture">History & Heritage</option>
+                        <option value="coastal">Beaches & Urban Life</option>
+                        <option value="nature">Desert & Wilderness</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Pace</label>
+                    <select id="plan-pace" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none">
+                        <option value="relaxed">Relaxed & Leisurely</option>
+                        <option value="balanced" selected>Balanced Explorer</option>
+                        <option value="active">Action Packed</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="text-center">
+                <button onclick="generateCustomItinerary()" class="px-8 py-4 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider transition-all transform hover:scale-105 glow-gold">
+                    Generate My Customized Route
+                </button>
+            </div>
+
+            <div id="itinerary-output" class="hidden space-y-4 pt-6 border-t border-white/10"></div>
+        </div>
+    </section>
+
+    <!-- Monetized Live Search Engine Bar -->
+    <section id="booking-widget" class="relative z-10 py-12 px-6 max-w-7xl mx-auto">
+        <div class="glass-card p-8 rounded-3xl glow-gold border border-amber-500/30 space-y-6">
+            <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <h3 class="font-cinzel text-2xl font-bold text-gradient-gold flex items-center gap-3">
+                    <i data-lucide="compass" class="w-6 h-6 text-amber-400"></i> Live Search & Booking Aggregator
+                </h3>
+                <span class="text-xs text-slate-400">Search Live Rates Across Top Partners</span>
+            </div>
+            
+            <form onsubmit="executeLiveSearch(event)" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Destination</label>
+                    <select id="search-dest" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none">
+                        <option value="Jerusalem">Jerusalem</option>
+                        <option value="Tel Aviv">Tel Aviv</option>
+                        <option value="Dead Sea">Dead Sea</option>
+                        <option value="Eilat">Eilat</option>
+                        <option value="Haifa">Haifa</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Service Type</label>
+                    <select id="search-type" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none">
+                        <option value="hotels">Hotels & Resorts</option>
+                        <option value="flights">Flights to TLV</option>
+                        <option value="tours">Excursions & Day Tours</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Travelers</label>
+                    <input type="number" min="1" max="10" value="2" class="w-full bg-slate-900 border border-white/10 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none">
+                </div>
+                <div class="flex items-end">
+                    <button type="submit" class="w-full py-3.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-extrabold text-xs uppercase tracking-wider transition-all transform hover:scale-105 flex items-center justify-center gap-2 shadow-lg glow-blue">
+                        <i data-lucide="external-link" class="w-4 h-4"></i> Search Live Inventory
+                    </button>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Destinations Section -->
+    <section id="destinations" class="relative z-10 py-16 px-6 max-w-7xl mx-auto">
+        <div class="flex flex-col md:flex-row md:items-end justify-between mb-12">
+            <div>
+                <h2 class="text-xs uppercase tracking-widest text-blue-400 font-bold mb-2">Explore Regions</h2>
+                <h3 class="font-cinzel text-4xl md:text-5xl font-bold text-gradient-gold">Featured Destinations</h3>
+            </div>
+            <!-- Filter Tabs -->
+            <div class="flex flex-wrap gap-2 mt-6 md:mt-0 p-1.5 glass-card rounded-xl">
+                <button onclick="filterDest('all', event)" class="tab-btn active px-4 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all bg-blue-600 text-white">All</button>
+                <button onclick="filterDest('historic', event)" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all text-slate-400 hover:text-white">Historic</button>
+                <button onclick="filterDest('coastal', event)" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all text-slate-400 hover:text-white">Coastal</button>
+                <button onclick="filterDest('nature', event)" class="tab-btn px-4 py-2 rounded-lg text-xs font-bold tracking-wider uppercase transition-all text-slate-400 hover:text-white">Nature & Desert</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8" id="dest-grid">
+            
+            <!-- Cards loop -->
+            <!-- 1. Jerusalem -->
+            <div class="dest-card historic glass-card rounded-2xl overflow-hidden group hover:border-amber-500/40 transition-all duration-500 transform hover:-translate-y-2">
+                <div class="relative h-64 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1544971587-b842c27f8c14?q=80&w=800&auto=format&fit=crop" alt="Jerusalem" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                    <span class="absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase glass-card text-amber-300 border border-amber-400/30">Historic</span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-cinzel text-2xl font-bold group-hover:text-amber-300 transition-colors">Jerusalem</h4>
+                        <span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 price-tag" data-base-price="180">From $180/night</span>
+                    </div>
+                    <p class="text-slate-400 text-xs leading-relaxed">Ancient history meets luxury hotels. Experience the Old City, Western Wall, and local markets.</p>
+                    <div class="flex items-center justify-between pt-4 border-t border-white/10">
+                        <button onclick="openBookingModal('Jerusalem')" class="px-4 py-2 rounded-lg bg-blue-600/30 hover:bg-blue-600 border border-blue-500/40 text-xs font-bold text-blue-200 hover:text-white transition-all">Book Stays</button>
+                        <button onclick="openDetailModal('Jerusalem')" class="text-xs text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">Details <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Tel Aviv -->
+            <div class="dest-card coastal glass-card rounded-2xl overflow-hidden group hover:border-blue-500/40 transition-all duration-500 transform hover:-translate-y-2">
+                <div class="relative h-64 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1512453979798-5ea266f8880c?q=80&w=800&auto=format&fit=crop" alt="Tel Aviv" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                    <span class="absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase glass-card text-blue-300 border border-blue-400/30">Coastal</span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-cinzel text-2xl font-bold group-hover:text-blue-400 transition-colors">Tel Aviv</h4>
+                        <span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 price-tag" data-base-price="210">From $210/night</span>
+                    </div>
+                    <p class="text-slate-400 text-xs leading-relaxed">Non-stop nightlife, golden Mediterranean beaches, culinary excellence, and boutique resorts.</p>
+                    <div class="flex items-center justify-between pt-4 border-t border-white/10">
+                        <button onclick="openBookingModal('Tel Aviv')" class="px-4 py-2 rounded-lg bg-blue-600/30 hover:bg-blue-600 border border-blue-500/40 text-xs font-bold text-blue-200 hover:text-white transition-all">Book Stays</button>
+                        <button onclick="openDetailModal('Tel Aviv')" class="text-xs text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">Details <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Dead Sea -->
+            <div class="dest-card nature glass-card rounded-2xl overflow-hidden group hover:border-emerald-500/40 transition-all duration-500 transform hover:-translate-y-2">
+                <div class="relative h-64 overflow-hidden">
+                    <img src="https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?q=80&w=800&auto=format&fit=crop" alt="Dead Sea" class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700">
+                    <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent"></div>
+                    <span class="absolute top-4 right-4 px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase glass-card text-emerald-300 border border-emerald-400/30">Nature</span>
+                </div>
+                <div class="p-6 space-y-3">
+                    <div class="flex justify-between items-start">
+                        <h4 class="font-cinzel text-2xl font-bold group-hover:text-emerald-300 transition-colors">Dead Sea</h4>
+                        <span class="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded border border-emerald-500/20 price-tag" data-base-price="195">From $195/night</span>
+                    </div>
+                    <p class="text-slate-400 text-xs leading-relaxed">Float effortlessly in mineral-dense waters and enjoy world-renowned health and mud spa resorts.</p>
+                    <div class="flex items-center justify-between pt-4 border-t border-white/10">
+                        <button onclick="openBookingModal('Dead Sea')" class="px-4 py-2 rounded-lg bg-blue-600/30 hover:bg-blue-600 border border-blue-500/40 text-xs font-bold text-blue-200 hover:text-white transition-all">Book Spas</button>
+                        <button onclick="openDetailModal('Dead Sea')" class="text-xs text-amber-400 font-bold uppercase tracking-wider flex items-center gap-1">Details <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i></button>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="relative z-10 py-12 px-6 border-t border-white/10 text-center text-slate-500 text-xs">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+            <div class="font-cinzel text-lg font-bold text-slate-300 tracking-widest">ISRAEL 360</div>
+            <p>&copy; 2026 Israel 360 Interactive Travel Portal. All Rights Reserved.</p>
+            <div class="flex space-x-6 text-slate-400">
+                <button onclick="openBookingModal('General')" class="hover:text-blue-400 transition-colors">Hotels & Flights</button>
+                <button onclick="openVideoModal()" class="hover:text-blue-400 transition-colors">Virtual Tour</button>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Booking Modal -->
+    <div id="booking-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-modal max-w-md w-full rounded-2xl p-8 relative space-y-6 shadow-2xl">
+            <button onclick="closeModal('booking-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            <h3 class="font-cinzel text-2xl font-bold text-gradient-gold">Book <span id="booking-dest-title"></span></h3>
+            <p class="text-slate-300 text-xs">Select travel partner to view real-time availability:</p>
+            
+            <div class="space-y-3 pt-2">
+                <a id="link-booking" href="#" target="_blank" class="flex items-center justify-between p-4 rounded-xl glass-card hover:bg-blue-600/30 transition-all border border-blue-500/30">
+                    <span class="font-bold text-sm text-white">Booking.com Inventory</span>
+                    <i data-lucide="external-link" class="w-4 h-4 text-blue-400"></i>
+                </a>
+                <a id="link-getyourguide" href="#" target="_blank" class="flex items-center justify-between p-4 rounded-xl glass-card hover:bg-amber-600/30 transition-all border border-amber-500/30">
+                    <span class="font-bold text-sm text-white">GetYourGuide Day Tours</span>
+                    <i data-lucide="external-link" class="w-4 h-4 text-amber-400"></i>
+                </a>
+                <a id="link-skyscanner" href="#" target="_blank" class="flex items-center justify-between p-4 rounded-xl glass-card hover:bg-emerald-600/30 transition-all border border-emerald-500/30">
+                    <span class="font-bold text-sm text-white">Skyscanner Flights</span>
+                    <i data-lucide="external-link" class="w-4 h-4 text-emerald-400"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div id="detail-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md hidden">
+        <div class="glass-modal max-w-2xl w-full rounded-2xl p-8 relative space-y-6">
+            <button onclick="closeModal('detail-modal')" class="absolute top-4 right-4 text-slate-400 hover:text-white p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <h3 id="modal-title" class="font-cinzel text-3xl font-bold text-gradient-gold"></h3>
+            <p id="modal-desc" class="text-slate-300 text-sm leading-relaxed"></p>
+            <div id="modal-highlights" class="grid grid-cols-2 gap-4 py-4 border-y border-white/10"></div>
+            <div class="flex justify-end gap-4">
+                <button onclick="closeModal('detail-modal')" class="px-6 py-2.5 rounded-full glass-card hover:bg-white/10 text-xs font-bold uppercase">Close</button>
+                <button id="modal-book-btn" onclick="" class="px-6 py-2.5 rounded-full bg-blue-600 hover:bg-blue-500 text-xs font-bold uppercase glow-blue">Book Stays</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Modal -->
+    <div id="video-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/90 backdrop-blur-md hidden">
+        <div class="max-w-4xl w-full aspect-video rounded-2xl overflow-hidden glass-card relative">
+            <button onclick="closeModal('video-modal')" class="absolute top-4 right-4 z-10 text-white bg-black/60 rounded-full p-2"><i data-lucide="x" class="w-6 h-6"></i></button>
+            <iframe class="w-full h-full" src="https://www.youtube.com/embed/2Bkdqi6m11U?autoplay=1&mute=1" title="Israel Travel Tour" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+        </div>
+    </div>
+
+    <!-- Core Dynamic Logic & API Engines -->
+    <script>
+        lucide.createIcons();
+
+        // 1. Currency Exchange Engine
+        const exchangeRates = { USD: 1.0, EUR: 0.92, ILS: 3.65 };
+        const currencySymbols = { USD: '$', EUR: '€', ILS: '₪' };
+        let currentCurrency = 'USD';
+
+        function updateCurrency(val) {
+            currentCurrency = val;
+            const rate = exchangeRates[val];
+            const symbol = currencySymbols[val];
+
+            document.querySelectorAll('.price-tag').forEach(el => {
+                const basePrice = parseFloat(el.getAttribute('data-base-price'));
+                const converted = Math.round(basePrice * rate);
+                el.innerText = `From ${symbol}${converted}/night`;
+            });
+        }
+
+        // 2. Open-Meteo Weather API Integration
+        async function fetchLiveWeather() {
+            const coords = [
+                { name: 'Jerusalem', lat: 31.7683, lon: 35.2137 },
+                { name: 'Tel Aviv', lat: 32.0853, lon: 34.7818 },
+                { name: 'Dead Sea', lat: 31.5590, lon: 35.4732 },
+                { name: 'Eilat', lat: 29.5577, lon: 34.9519 }
+            ];
+
+            const container = document.getElementById('weather-cards-container');
+            container.innerHTML = '';
+
+            for (const item of coords) {
+                try {
+                    const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${item.lat}&longitude=${item.lon}&current_weather=true`);
+                    const data = await res.json();
+                    const tempC = Math.round(data.current_weather.temperature);
+                    const tempF = Math.round((tempC * 9/5) + 32);
+
+                    container.innerHTML += `
+                        <div class="p-4 glass-card rounded-2xl text-center space-y-1 hover:border-amber-400/40 transition-all">
+                            <h4 class="font-cinzel text-sm font-bold text-slate-300">${item.name}</h4>
+                            <div class="text-2xl font-black text-amber-300">${tempC}°C <span class="text-xs text-slate-400 font-normal">/ ${tempF}°F</span></div>
+                            <p class="text-[10px] uppercase font-bold text-blue-400 tracking-wider">Live Weather</p>
+                        </div>
+                    `;
+                } catch (e) {
+                    container.innerHTML += `
+                        <div class="p-4 glass-card rounded-2xl text-center">
+                            <h4 class="font-cinzel text-sm font-bold">${item.name}</h4>
+                            <div class="text-lg font-bold text-slate-400">24°C</div>
+                        </div>
+                    `;
+                }
+            }
+        }
+        fetchLiveWeather();
+
+        // 3. Dynamic Custom Itinerary Builder
+        function generateCustomItinerary() {
+            const days = document.getElementById('plan-days').value;
+            const focus = document.getElementById('plan-focus').value;
+            const output = document.getElementById('itinerary-output');
+
+            const routes = {
+                culture: ["Jerusalem Old City & Western Wall", "Masada Fortress & Cable Car", "Baha'i Gardens Haifa", "Caesarea Amphitheatre Ruins"],
+                coastal: ["Tel Aviv Beachfront & Jaffa", "Rothschild Tech Boulevard", "Haifa German Colony", "Eilat Red Sea Reefs"],
+                nature: ["Dead Sea Mineral Floating", "Ramon Crater Stargazing", "Sea of Galilee Hot Springs", "Negev Desert Jeep Safari"]
+            };
+
+            const selected = routes[focus];
+            let html = `<h4 class="font-cinzel text-xl font-bold text-gradient-gold mb-4">Your Custom ${days}-Day Itinerary</h4><div class="grid grid-cols-1 md:grid-cols-2 gap-4">`;
+
+            for (let i = 1; i <= days; i++) {
+                const highlight = selected[(i - 1) % selected.length];
+                html += `
+                    <div class="p-4 glass-card rounded-xl border border-white/5 space-y-1">
+                        <span class="text-[10px] font-bold text-amber-400 uppercase tracking-widest">Day ${i}</span>
+                        <h5 class="font-bold text-sm text-slate-200">${highlight}</h5>
+                        <p class="text-xs text-slate-400">Explore sights, local dining, and evening walking tours.</p>
+                        <button onclick="openBookingModal('${highlight}')" class="text-[11px] font-bold text-blue-400 hover:text-white uppercase tracking-wider pt-2 flex items-center gap-1">
+                            Book Day Experiences <i data-lucide="arrow-right" class="w-3 h-3"></i>
+                        </button>
+                    </div>
+                `;
+            }
+            html += `</div>`;
+
+            output.innerHTML = html;
+            output.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        // Modal Logic & Filters
+        const destData = {
+            "Jerusalem": { desc: "Historic capital filled with ancient landmarks and luxury hotels.", highlights: ["Western Wall", "Old City Bazaars", "Tower of David"] },
+            "Tel Aviv": { desc: "Bustling coastal city with non-stop nightlife and sandy Mediterranean beaches.", highlights: ["Jaffa Port", "Rothschild Ave", "Gordon Beach"] },
+            "Dead Sea": { desc: "Lowest place on earth (-430m) with mineral mud and salt waters.", highlights: ["Mineral Mud Spas", "Ein Gedi Oasis", "Floating Waters"] }
+        };
+
+        function openBookingModal(dest) {
+            document.getElementById('booking-dest-title').innerText = dest;
+            document.getElementById('link-booking').href = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(dest)}+Israel`;
+            document.getElementById('link-getyourguide').href = `https://www.getyourguide.com/s/?q=${encodeURIComponent(dest)}`;
+            document.getElementById('link-skyscanner').href = `https://www.skyscanner.net/transport/flights/anywhere/tlv/`;
+            document.getElementById('booking-modal').classList.remove('hidden');
+        }
+
+        function openDetailModal(name) {
+            const data = destData[name] || { desc: "Explore local landmarks, hotels, and tours.", highlights: ["Local Markets", "Historic Sightseeing"] };
+            document.getElementById('modal-title').innerText = name;
+            document.getElementById('modal-desc').innerText = data.desc;
+            document.getElementById('modal-highlights').innerHTML = data.highlights.map(h => `
+                <div class="flex items-center gap-2 text-xs text-slate-300">
+                    <i data-lucide="check-circle-2" class="w-4 h-4 text-amber-400"></i><span>${h}</span>
+                </div>
+            `).join('');
+            document.getElementById('modal-book-btn').onclick = () => { closeModal('detail-modal'); openBookingModal(name); };
+            lucide.createIcons();
+            document.getElementById('detail-modal').classList.remove('hidden');
+        }
+
+        function executeLiveSearch(e) {
+            e.preventDefault();
+            const dest = document.getElementById('search-dest').value;
+            const type = document.getElementById('search-type').value;
+
+            let targetUrl = `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(dest)}+Israel`;
+            if (type === 'tours') targetUrl = `https://www.getyourguide.com/s/?q=${encodeURIComponent(dest)}`;
+            if (type === 'flights') targetUrl = `https://www.skyscanner.net/transport/flights/anywhere/tlv/`;
+
+            window.open(targetUrl, '_blank');
+        }
+
+        function openVideoModal() { document.getElementById('video-modal').classList.remove('hidden'); }
+        function closeModal(id) { document.getElementById(id).classList.add('hidden'); }
+
+        function filterDest(category, e) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('bg-blue-600', 'text-white'));
+            e.target.classList.add('bg-blue-600', 'text-white');
+
+            document.querySelectorAll('.dest-card').forEach(card => {
+                if (category === 'all' || card.classList.contains(category)) {
+                    card.style.display = 'block';
+                } else {
+                    card.style.display = 'none';
+                }
+            });
+        }
+
+        // 3D Three.js Engine
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        container.appendChild(renderer.domElement);
+
+        const particleCount = 1000;
+        const geometry = new THREE.BufferGeometry();
+        const positions = new Float32Array(particleCount * 3);
+        for (let i = 0; i < particleCount * 3; i++) positions[i] = (Math.random() - 0.5) * 15;
+        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+        const material = new THREE.PointsMaterial({ size: 0.03, color: 0xe6c687, transparent: true, opacity: 0.7 });
+        const points = new THREE.Points(geometry, material);
+        scene.add(points);
+        camera.position.z = 5;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            points.rotation.y += 0.002;
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
