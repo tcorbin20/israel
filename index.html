@@ -2,8 +2,8 @@
 <html lang="en" class="h-full scroll-smooth">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>World Explorer Ultimate Pro - Live Weather & FX</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>World Explorer Ultimate Pro - Mobile & Desktop</title>
 
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -29,6 +29,7 @@
             background-color: #020617;
             color: #f8fafc;
             overflow: hidden;
+            touch-action: none; /* Prevents default mobile scroll/zoom bounce */
         }
         .font-space { font-family: 'Space Grotesk', sans-serif; }
         .glass-panel {
@@ -40,20 +41,23 @@
         .glass-pill {
             background: rgba(30, 41, 59, 0.85);
             backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.18);
         }
         .glass-modal {
             background: rgba(7, 12, 27, 0.96);
             backdrop-filter: blur(35px);
+            -webkit-backdrop-filter: blur(35px);
             border: 1px solid rgba(0, 210, 255, 0.35);
         }
-        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 999px; }
         #canvas-container canvas {
             display: block;
             width: 100vw !important;
             height: 100vh !important;
+            height: 100dvh !important;
         }
     </style>
 </head>
@@ -62,90 +66,139 @@
     <!-- Loading Screen -->
     <div id="loading-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-slate-950 text-white transition-opacity duration-700">
         <div class="relative flex items-center justify-center mb-6">
-            <div class="w-24 h-24 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin"></div>
-            <i data-lucide="globe" class="w-10 h-10 text-cyan-400 absolute"></i>
+            <div class="w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-cyan-500/20 border-t-cyan-400 animate-spin"></div>
+            <i data-lucide="globe" class="w-8 h-8 md:w-10 md:h-10 text-cyan-400 absolute"></i>
         </div>
-        <h1 class="font-space text-2xl font-bold tracking-wider">WORLD EXPLORER ULTIMATE PRO</h1>
-        <p id="loading-status" class="text-xs text-slate-400 mt-2 font-mono">Syncing Open-Meteo Weather API & High-End Shaders...</p>
+        <h1 class="font-space text-xl md:text-2xl font-bold tracking-wider text-center px-4">WORLD EXPLORER ULTIMATE</h1>
+        <p id="loading-status" class="text-[11px] md:text-xs text-slate-400 mt-2 font-mono text-center px-4">Optimizing Mobile Graphics & Shaders...</p>
     </div>
 
     <!-- WebGL Canvas Container -->
     <div id="canvas-container" class="fixed inset-0 z-0 bg-slate-950"></div>
 
     <!-- Overlay UI -->
-    <div class="relative z-10 h-full w-full flex flex-col justify-between pointer-events-none p-4 md:p-6">
+    <div class="relative z-10 h-full w-full flex flex-col justify-between pointer-events-none p-3 md:p-6">
         
         <!-- Header -->
-        <header class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 pointer-events-auto">
-            <div class="flex items-center gap-3">
-                <div class="glass-pill p-2 px-3 rounded-full flex items-center gap-2">
-                    <i data-lucide="globe" class="w-5 h-5 text-cyan-400"></i>
-                    <span class="font-space font-bold text-sm tracking-wide text-white">WORLD EXPLORER</span>
-                    <span class="text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono">LIVE API + FX</span>
+        <header class="flex flex-col gap-3 pointer-events-auto">
+            <div class="flex items-center justify-between">
+                <div class="glass-pill p-1.5 px-3 rounded-full flex items-center gap-2">
+                    <i data-lucide="globe" class="w-4 h-4 md:w-5 md:h-5 text-cyan-400"></i>
+                    <span class="font-space font-bold text-xs md:text-sm tracking-wide text-white">WORLD EXPLORER</span>
+                    <span class="hidden sm:inline-block text-[9px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 font-mono">LIVE API + FX</span>
                 </div>
 
-                <!-- Simulation Toggles -->
-                <div class="hidden xl:flex items-center gap-1.5 glass-panel p-1 rounded-full">
-                    <button onclick="toggleLayer('weather')" id="weather-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
-                        <i data-lucide="cloud-rain" class="w-3.5 h-3.5 text-cyan-400"></i> Radar
+                <!-- Right Action Buttons (Desktop) -->
+                <div class="hidden md:flex items-center gap-2.5">
+                    <div class="relative">
+                        <input type="text" id="quick-search-desktop" placeholder="Search locations..." oninput="handleQuickSearch(this.value, 'desktop')" class="glass-pill px-3 py-1.5 rounded-full text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 w-48 font-mono">
+                        <div id="search-dropdown-desktop" class="absolute top-full mt-2 left-0 w-64 glass-modal rounded-2xl p-2 hidden max-h-60 overflow-y-auto z-30 shadow-2xl space-y-1"></div>
+                    </div>
+
+                    <button onclick="toggleTourMode()" id="tour-btn" class="glass-pill px-3 py-2 rounded-full text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1.5 transition-colors border border-cyan-500/30">
+                        <i data-lucide="play-circle" class="w-4 h-4"></i>
+                        <span>Tour</span>
                     </button>
-                    <button onclick="toggleLayer('topo')" id="topo-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
-                        <i data-lucide="mountain" class="w-3.5 h-3.5 text-amber-400"></i> Bathymetry
+
+                    <button onclick="openCustomPinModal()" class="glass-pill px-3 py-2 rounded-full text-amber-400 hover:text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-colors border border-amber-500/30">
+                        <i data-lucide="map-pin" class="w-4 h-4"></i>
+                        <span>+ Pin</span>
                     </button>
-                    <button onclick="toggleLayer('aurora')" id="aurora-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
-                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i> Aurora
+
+                    <button onclick="resetCameraView()" class="glass-pill p-2.5 rounded-full text-slate-300 hover:text-white transition-colors" title="Reset View">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
                     </button>
-                    <button onclick="toggleAudio()" id="audio-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
-                        <i data-lucide="volume-2" class="w-3.5 h-3.5 text-purple-400"></i> Soundscape
+                </div>
+
+                <!-- Mobile Header Compact Actions -->
+                <div class="flex md:hidden items-center gap-1.5">
+                    <button onclick="openSearchModal()" class="glass-pill p-2.5 rounded-full text-cyan-400">
+                        <i data-lucide="search" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="openCustomPinModal()" class="glass-pill p-2.5 rounded-full text-amber-400">
+                        <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    </button>
+                    <button onclick="toggleMobileMenu()" id="mobile-menu-btn" class="glass-pill p-2.5 rounded-full text-slate-300">
+                        <i data-lucide="menu" class="w-4 h-4"></i>
                     </button>
                 </div>
             </div>
 
-            <!-- Header Actions & Search -->
-            <div class="flex items-center gap-2.5 w-full md:w-auto justify-between md:justify-end">
-                <div class="relative">
-                    <input type="text" id="quick-search" placeholder="Search locations..." oninput="handleQuickSearch(this.value)" class="glass-pill px-3 py-1.5 rounded-full text-xs text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 w-48 font-mono">
-                    <div id="search-dropdown" class="absolute top-full mt-2 left-0 w-64 glass-modal rounded-2xl p-2 hidden max-h-60 overflow-y-auto z-30 shadow-2xl space-y-1"></div>
-                </div>
-
-                <button onclick="toggleTourMode()" id="tour-btn" class="glass-pill px-3 py-2 rounded-full text-cyan-400 hover:text-cyan-300 font-semibold text-xs flex items-center gap-1.5 transition-colors border border-cyan-500/30">
-                    <i data-lucide="play-circle" class="w-4 h-4"></i>
-                    <span>Tour</span>
+            <!-- Simulation Toggles (Desktop & Expandable Mobile) -->
+            <div id="simulation-toolbar" class="hidden md:flex items-center gap-1.5 glass-panel p-1 rounded-full self-start">
+                <button onclick="toggleLayer('weather')" id="weather-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+                    <i data-lucide="cloud-rain" class="w-3.5 h-3.5 text-cyan-400"></i> Radar
                 </button>
-
-                <button onclick="openCustomPinModal()" class="glass-pill px-3 py-2 rounded-full text-amber-400 hover:text-amber-300 font-semibold text-xs flex items-center gap-1.5 transition-colors border border-amber-500/30">
-                    <i data-lucide="map-pin" class="w-4 h-4"></i>
-                    <span>+ Pin</span>
+                <button onclick="toggleLayer('topo')" id="topo-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+                    <i data-lucide="mountain" class="w-3.5 h-3.5 text-amber-400"></i> Bathymetry
                 </button>
-
-                <button onclick="resetCameraView()" class="glass-pill p-2.5 rounded-full text-slate-300 hover:text-white transition-colors" title="Reset View">
-                    <i data-lucide="rotate-ccw" class="w-4 h-4"></i>
+                <button onclick="toggleLayer('aurora')" id="aurora-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+                    <i data-lucide="sparkles" class="w-3.5 h-3.5 text-emerald-400"></i> Aurora
+                </button>
+                <button onclick="toggleAudio()" id="audio-btn" class="px-3 py-1 rounded-full text-xs font-semibold text-slate-400 hover:text-white transition-colors flex items-center gap-1">
+                    <i data-lucide="volume-2" class="w-3.5 h-3.5 text-purple-400"></i> Soundscape
                 </button>
             </div>
         </header>
 
-        <!-- Bottom Status -->
-        <div class="flex items-center justify-between text-[11px] text-slate-400 pointer-events-auto">
-            <div class="glass-pill px-3 py-1.5 rounded-full flex items-center gap-3">
-                <span><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">Dbl-Click</kbd> Drop Pin</span>
-                <span><kbd class="px-1.5 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">Open-Meteo</kbd> Live Weather Active</span>
+        <!-- Mobile Expanded Toolbar Menu -->
+        <div id="mobile-dropdown-menu" class="glass-modal rounded-2xl p-3 pointer-events-auto hidden space-y-2 md:hidden shadow-2xl">
+            <div class="grid grid-cols-2 gap-2">
+                <button onclick="toggleLayer('weather'); toggleMobileMenu();" class="glass-pill py-2 px-3 rounded-xl text-xs font-semibold text-slate-300 flex items-center gap-2">
+                    <i data-lucide="cloud-rain" class="w-4 h-4 text-cyan-400"></i> Radar
+                </button>
+                <button onclick="toggleLayer('topo'); toggleMobileMenu();" class="glass-pill py-2 px-3 rounded-xl text-xs font-semibold text-slate-300 flex items-center gap-2">
+                    <i data-lucide="mountain" class="w-4 h-4 text-amber-400"></i> Bathymetry
+                </button>
+                <button onclick="toggleLayer('aurora'); toggleMobileMenu();" class="glass-pill py-2 px-3 rounded-xl text-xs font-semibold text-slate-300 flex items-center gap-2">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-emerald-400"></i> Aurora
+                </button>
+                <button onclick="toggleTourMode(); toggleMobileMenu();" class="glass-pill py-2 px-3 rounded-xl text-xs font-semibold text-cyan-300 flex items-center gap-2">
+                    <i data-lucide="play-circle" class="w-4 h-4 text-cyan-400"></i> Tour Mode
+                </button>
+            </div>
+            <button onclick="resetCameraView(); toggleMobileMenu();" class="w-full py-2 glass-pill rounded-xl text-xs font-semibold text-slate-300 flex items-center justify-center gap-2">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> Reset Globe View
+            </button>
+        </div>
+
+        <!-- Bottom Status Bar -->
+        <div class="flex items-center justify-between text-[10px] md:text-[11px] text-slate-400 pointer-events-auto">
+            <div class="glass-pill px-3 py-1.5 rounded-full flex items-center gap-2">
+                <span class="hidden sm:inline"><kbd class="px-1 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">Double-Tap / Click</kbd> Drop Pin</span>
+                <span class="sm:hidden"><kbd class="px-1 py-0.5 rounded bg-slate-800 text-slate-200 font-mono">Tap Globe</kbd> Drop Pin</span>
+                <span>Open-Meteo Live</span>
             </div>
 
-            <div class="glass-pill px-3 py-1.5 rounded-full flex items-center gap-3 font-mono text-[10px] text-cyan-300">
-                <span>Active Nodes: <strong id="marker-count" class="text-white">54</strong></span>
+            <div class="glass-pill px-3 py-1.5 rounded-full flex items-center gap-2 font-mono text-[10px] text-cyan-300">
+                <span>Nodes: <strong id="marker-count" class="text-white">15</strong></span>
             </div>
         </div>
     </div>
 
+    <!-- Mobile Search Modal Overlay -->
+    <div id="mobile-search-modal" class="fixed inset-0 z-50 flex flex-col justify-start bg-slate-950/90 backdrop-blur-md hidden pointer-events-auto p-4 pt-12">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="font-space text-base font-bold text-white flex items-center gap-2">
+                <i data-lucide="search" class="w-4 h-4 text-cyan-400"></i> Search Global Nodes
+            </h3>
+            <button onclick="closeSearchModal()" class="p-2 glass-pill rounded-full text-slate-400 hover:text-white">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+        <input type="text" id="quick-search-mobile" placeholder="Search cities, countries..." oninput="handleQuickSearch(this.value, 'mobile')" class="w-full glass-panel px-4 py-3 rounded-2xl text-sm text-white placeholder-slate-400 focus:outline-none focus:border-cyan-400 font-mono mb-3">
+        <div id="search-dropdown-mobile" class="space-y-1.5 overflow-y-auto max-h-[70vh]"></div>
+    </div>
+
     <!-- Custom Pin Modal -->
-    <div id="custom-pin-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden pointer-events-auto">
-        <div class="glass-modal p-6 rounded-3xl w-full max-w-md border border-amber-500/30 space-y-4 shadow-2xl relative">
+    <div id="custom-pin-modal" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md hidden pointer-events-auto p-4">
+        <div class="glass-modal p-5 md:p-6 rounded-3xl w-full max-w-md border border-amber-500/30 space-y-4 shadow-2xl relative max-h-[90vh] overflow-y-auto">
             <button onclick="closeCustomPinModal()" class="absolute top-4 right-4 text-slate-400 hover:text-white">
                 <i data-lucide="x" class="w-5 h-5"></i>
             </button>
             <div class="flex items-center gap-2 text-amber-400">
                 <i data-lucide="map-pin" class="w-5 h-5"></i>
-                <h3 class="font-space text-lg font-bold">Add Custom Satellite Pin</h3>
+                <h3 class="font-space text-base md:text-lg font-bold">Add Custom Satellite Pin</h3>
             </div>
 
             <form id="custom-pin-form" onsubmit="handleCustomPinSubmit(event)" class="space-y-3">
@@ -188,14 +241,15 @@
         </div>
     </div>
 
-    <!-- Destination Drawer -->
-    <aside id="fact-drawer" class="fixed top-0 right-0 bottom-0 z-50 w-full sm:w-[450px] glass-modal shadow-2xl transition-transform duration-500 transform translate-x-full flex flex-col pointer-events-auto">
+    <!-- Destination Drawer (Slide-up Bottom Sheet on Mobile, Sidebar on Desktop) -->
+    <aside id="fact-drawer" class="fixed inset-x-0 bottom-0 sm:inset-x-auto sm:top-0 sm:right-0 sm:bottom-0 z-50 w-full sm:w-[450px] max-h-[85vh] sm:max-h-none glass-modal shadow-2xl transition-transform duration-500 transform translate-y-full sm:translate-y-0 sm:translate-x-full flex flex-col pointer-events-auto rounded-t-3xl sm:rounded-none">
+        <div class="sm:hidden w-12 h-1.5 bg-slate-600 rounded-full mx-auto my-2 shrink-0"></div>
         <button onclick="closeDrawer()" class="absolute top-5 right-5 z-20 p-2 glass-pill rounded-full text-slate-400 hover:text-white transition-colors">
             <i data-lucide="x" class="w-5 h-5"></i>
         </button>
 
-        <div class="h-full overflow-y-auto p-6 space-y-6">
-            <div class="relative h-64 rounded-2xl overflow-hidden glass-panel border border-white/10 shrink-0 bg-slate-900">
+        <div class="h-full overflow-y-auto p-5 sm:p-6 space-y-5">
+            <div class="relative h-48 sm:h-64 rounded-2xl overflow-hidden glass-panel border border-white/10 shrink-0 bg-slate-900">
                 <img id="drawer-img" src="" alt="Satellite View" class="w-full h-full object-cover transition-opacity duration-300">
                 <div class="absolute top-3 right-3 px-2.5 py-1 rounded-full bg-slate-950/85 backdrop-blur-md text-[9px] font-mono text-cyan-300 border border-cyan-500/30 flex items-center gap-1 shadow-lg">
                     <i data-lucide="satellite" class="w-3 h-3 text-cyan-400"></i> ArcGIS Imagery
@@ -203,12 +257,12 @@
                 <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/20 to-transparent"></div>
                 <div class="absolute bottom-4 left-4 right-4 space-y-1">
                     <span id="drawer-country" class="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-cyan-500/20 text-cyan-300 border border-cyan-500/30"></span>
-                    <h2 id="drawer-title" class="font-space text-3xl font-bold text-white"></h2>
+                    <h2 id="drawer-title" class="font-space text-2xl sm:text-3xl font-bold text-white"></h2>
                 </div>
             </div>
 
             <!-- Live Weather Telemetry Widget -->
-            <div class="glass-panel p-4 rounded-2xl border border-cyan-500/30 space-y-2 bg-slate-900/60">
+            <div class="glass-panel p-3.5 sm:p-4 rounded-2xl border border-cyan-500/30 space-y-2 bg-slate-900/60">
                 <div class="flex items-center justify-between">
                     <span class="text-xs uppercase font-extrabold text-cyan-400 tracking-wider flex items-center gap-1.5">
                         <i data-lucide="cloud-sun" class="w-4 h-4"></i> Live Weather (Open-Meteo)
@@ -253,12 +307,12 @@
                 <p id="drawer-desc" class="text-slate-300 text-xs leading-relaxed font-light"></p>
             </div>
 
-            <div class="flex gap-2 pt-2">
-                <button onclick="copyCoordinates()" class="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+            <div class="flex gap-2 pt-2 pb-6 sm:pb-0">
+                <button onclick="copyCoordinates()" class="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
                     <i data-lucide="copy" class="w-3.5 h-3.5"></i> Copy Coords
                 </button>
                 <div id="custom-delete-container" class="hidden flex-1">
-                    <button onclick="deleteCurrentCustomPin()" class="w-full py-2 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+                    <button onclick="deleteCurrentCustomPin()" class="w-full py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
                         <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> Delete Pin
                     </button>
                 </div>
@@ -329,6 +383,8 @@
             controls.dampingFactor = 0.05;
             controls.minDistance = 110;
             controls.maxDistance = 450;
+            controls.enableZoom = true;
+            controls.enableRotate = true;
 
             const loadingManager = new THREE.LoadingManager(() => {
                 const screen = document.getElementById('loading-screen');
@@ -352,7 +408,6 @@
             );
             scene.add(clouds);
 
-            // Weather Radar Layer
             weatherMesh = new THREE.Mesh(
                 new THREE.SphereGeometry(50.3, 32, 32),
                 new THREE.MeshBasicMaterial({ color: 0x00ffff, transparent: true, opacity: 0.15, wireframe: true })
@@ -360,7 +415,6 @@
             weatherMesh.visible = false;
             scene.add(weatherMesh);
 
-            // Bathymetry Topography Layer
             topoMesh = new THREE.Mesh(
                 new THREE.SphereGeometry(49.7, 32, 32),
                 new THREE.MeshBasicMaterial({ color: 0x1e3a8a, wireframe: true, transparent: true, opacity: 0.25 })
@@ -368,7 +422,6 @@
             topoMesh.visible = false;
             scene.add(topoMesh);
 
-            // Aurora Borealis Ring Layer
             auroraMesh = new THREE.Mesh(
                 new THREE.RingGeometry(25, 42, 32),
                 new THREE.MeshBasicMaterial({ color: 0x10b981, transparent: true, opacity: 0.0, side: THREE.DoubleSide })
@@ -378,7 +431,6 @@
             auroraMesh.visible = false;
             scene.add(auroraMesh);
 
-            // Weather Precipitation Particle System
             const particleGeo = new THREE.BufferGeometry();
             const particleCount = 400;
             const posArray = new Float32Array(particleCount * 3);
@@ -402,10 +454,40 @@
             renderAllPins();
 
             window.addEventListener('resize', onWindowResize);
-            renderer.domElement.addEventListener('click', onDocumentClick);
+            
+            // Unified Touch / Mouse Event Handlers
+            renderer.domElement.addEventListener('pointerup', onPointerReleased);
             renderer.domElement.addEventListener('dblclick', onDocumentDoubleClick);
 
             animate();
+        }
+
+        let pointerDownTime = 0;
+        let pointerDownPos = { x: 0, y: 0 };
+
+        renderer?.domElement?.addEventListener('pointerdown', (e) => {
+            pointerDownTime = Date.now();
+            pointerDownPos = { x: e.clientX, y: e.clientY };
+        });
+
+        function onPointerReleased(event) {
+            const dist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+            // If it's a quick click/tap without dragging, process pin raycast selection
+            if (dist < 8 && (Date.now() - pointerDownTime) < 350) {
+                const rect = renderer.domElement.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+                raycaster.setFromCamera(mouse, camera);
+                // Expand threshold slightly for touch targeting accuracy
+                raycaster.params.Points.threshold = 2.5;
+                const intersects = raycaster.intersectObjects(pinGroup.children);
+
+                if (intersects.length > 0) {
+                    const dest = intersects[0].object.userData;
+                    if (dest && dest.name) selectDestination(dest);
+                }
+            }
         }
 
         function latLngToVector3(lat, lng, radius) {
@@ -424,7 +506,7 @@
                 const pos = latLngToVector3(dest.lat, dest.lng, 50.6);
                 const pinColor = dest.isCustom ? 0xf59e0b : 0x00d2ff;
                 const pinMesh = new THREE.Mesh(
-                    new THREE.SphereGeometry(dest.isCustom ? 1.2 : 0.8, 16, 16),
+                    new THREE.SphereGeometry(dest.isCustom ? 1.4 : 1.0, 16, 16),
                     new THREE.MeshBasicMaterial({ color: pinColor })
                 );
                 pinMesh.position.copy(pos);
@@ -463,14 +545,14 @@
         function toggleLayer(layer) {
             if (layer === 'weather') {
                 weatherMesh.visible = !weatherMesh.visible;
-                document.getElementById('weather-btn').classList.toggle('bg-cyan-500/20', weatherMesh.visible);
+                document.getElementById('weather-btn')?.classList.toggle('bg-cyan-500/20', weatherMesh.visible);
             } else if (layer === 'topo') {
                 topoMesh.visible = !topoMesh.visible;
-                document.getElementById('topo-btn').classList.toggle('bg-amber-500/20', topoMesh.visible);
+                document.getElementById('topo-btn')?.classList.toggle('bg-amber-500/20', topoMesh.visible);
             } else if (layer === 'aurora') {
                 auroraMesh.visible = !auroraMesh.visible;
                 auroraMesh.material.opacity = auroraMesh.visible ? 0.65 : 0.0;
-                document.getElementById('aurora-btn').classList.toggle('bg-emerald-500/20', auroraMesh.visible);
+                document.getElementById('aurora-btn')?.classList.toggle('bg-emerald-500/20', auroraMesh.visible);
             }
         }
 
@@ -481,10 +563,10 @@
             isAudioPlaying = !isAudioPlaying;
             const btn = document.getElementById('audio-btn');
             if (isAudioPlaying) {
-                btn.classList.add('bg-purple-500/20');
+                btn?.classList.add('bg-purple-500/20');
                 playAmbientSound();
             } else {
-                btn.classList.remove('bg-purple-500/20');
+                btn?.classList.remove('bg-purple-500/20');
             }
         }
 
@@ -630,9 +712,10 @@
             if (dest.isCustom) deleteContainer.classList.remove('hidden');
             else deleteContainer.classList.add('hidden');
 
-            document.getElementById('fact-drawer').classList.remove('translate-x-full');
+            const drawer = document.getElementById('fact-drawer');
+            drawer.classList.remove('translate-y-full');
+            drawer.classList.remove('sm:translate-x-full');
 
-            // Trigger live weather fetch
             fetchLiveWeather(dest.lat, dest.lng);
         }
 
@@ -665,22 +748,9 @@
             }
         }
 
-        function onDocumentClick(event) {
-            const rect = renderer.domElement.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-            raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(pinGroup.children);
-
-            if (intersects.length > 0) {
-                const dest = intersects[0].object.userData;
-                if (dest && dest.name) selectDestination(dest);
-            }
-        }
-
-        function handleQuickSearch(query) {
-            const dropdown = document.getElementById('search-dropdown');
+        function handleQuickSearch(query, mode = 'desktop') {
+            const dropdownId = mode === 'mobile' ? 'search-dropdown-mobile' : 'search-dropdown-desktop';
+            const dropdown = document.getElementById(dropdownId);
             if (!query.trim()) {
                 dropdown.classList.add('hidden');
                 return;
@@ -691,7 +761,7 @@
                 return;
             }
             dropdown.innerHTML = filtered.slice(0, 6).map(d => `
-                <div onclick="selectDestination(destinations.find(x => x.id === '${d.id}')); document.getElementById('search-dropdown').classList.add('hidden');" class="p-2 hover:bg-slate-800 rounded-xl cursor-pointer text-xs flex items-center justify-between">
+                <div onclick="selectDestination(destinations.find(x => x.id === '${d.id}')); closeSearchModal(); document.getElementById('search-dropdown-desktop')?.classList.add('hidden');" class="p-2.5 hover:bg-slate-800 rounded-xl cursor-pointer text-xs flex items-center justify-between">
                     <span class="font-bold text-white">${d.name}</span>
                     <span class="text-[10px] text-cyan-300 font-mono">${d.country}</span>
                 </div>
@@ -703,7 +773,7 @@
             isTourActive = !isTourActive;
             const btn = document.getElementById('tour-btn');
             if (isTourActive) {
-                btn.classList.add('bg-cyan-500/30', 'border-cyan-400');
+                btn?.classList.add('bg-cyan-500/30', 'border-cyan-400');
                 let idx = 0;
                 selectDestination(destinations[idx]);
                 tourInterval = setInterval(() => {
@@ -711,7 +781,7 @@
                     selectDestination(destinations[idx]);
                 }, 5000);
             } else {
-                btn.classList.remove('bg-cyan-500/30', 'border-cyan-400');
+                btn?.classList.remove('bg-cyan-500/30', 'border-cyan-400');
                 clearInterval(tourInterval);
                 isAutoRotating = true;
             }
@@ -725,19 +795,30 @@
 
         function openCustomPinModal() { document.getElementById('custom-pin-modal').classList.remove('hidden'); }
         function closeCustomPinModal() { document.getElementById('custom-pin-modal').classList.add('hidden'); }
-        function closeDrawer() { document.getElementById('fact-drawer').classList.add('translate-x-full'); }
+        function openSearchModal() { document.getElementById('mobile-search-modal').classList.remove('hidden'); }
+        function closeSearchModal() { document.getElementById('mobile-search-modal').classList.add('hidden'); }
+        function toggleMobileMenu() { document.getElementById('mobile-dropdown-menu').classList.toggle('hidden'); }
+        
+        function closeDrawer() { 
+            const drawer = document.getElementById('fact-drawer');
+            drawer.classList.add('translate-y-full');
+            drawer.classList.add('sm:translate-x-full');
+        }
+
         function resetCameraView() { 
             isTourActive = false;
             clearInterval(tourInterval);
             isAutoRotating = true;
             new TWEEN.Tween(camera.position).to({ x: 0, y: 0, z: 200 }, 1200).easing(TWEEN.Easing.Cubic.Out).start(); 
         }
+
         function deleteCurrentCustomPin() {
             if (!currentSelectedDest || !currentSelectedDest.isCustom) return;
             destinations = destinations.filter(d => d.id !== currentSelectedDest.id);
             renderAllPins();
             closeDrawer();
         }
+
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
