@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Bonk.io - Authentic Replica</title>
-    <!-- PeerJS for P2P Multiplayer -->
+    <title>Bonk.io - Authentic Multiplayer Replica</title>
+    <!-- PeerJS for P2P Multiplayer Networking -->
     <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
     <!-- Google Fonts for Arcade Style Typography -->
     <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
@@ -123,13 +123,15 @@
     </div>
 
     <div id="game-ui" class="hidden">
-        <div class="score-box" id="hud-score">ROUND 1</div>
+        <div class="score-box" id="hud-score">ARENA BATTLE</div>
     </div>
     
     <canvas id="gameCanvas" width="850" height="550"></canvas>
 
     <script>
-        let peer, conn;
+        let peer = null;
+        let connections = []; // List of all active client connections (for host)
+        let hostConnection = null; // Connection to host (for clients)
         let isHost = false;
         let myId = null;
 
@@ -138,7 +140,6 @@
 
         const input = { left: false, right: false, up: false, space: false };
         const players = {};
-        
         const arena = { x: 125, y: 360, width: 600, height: 35 };
 
         window.addEventListener('keydown', (e) => handleKey(e, true));
@@ -158,81 +159,6 @@
             return Math.floor(1000 + Math.random() * 9000).toString();
         }
 
-        function hostGame() {
-            isHost = true;
-            const customCode = generate4DigitCode();
-            // Prefix custom code with a unique tag to avoid global PeerJS collisions
-            myId = 'bonk-' + customCode;
-            
-            peer = new Peer(myId);
-            
-            peer.on('open', (id) => {
-                document.getElementById('status').innerText = `ROOM CODE: ${customCode}`;
-                document.getElementById('menu-actions').classList.add('hidden');
-                
-                players[myId] = createPlayer(myId);
-                startHostLoop();
-            });
-
-            peer.on('error', (err) => {
-                // If 4-digit code collision happens, try generating a new one
-                if (err.type === 'unavailable-id') {
-                    peer.destroy();
-                    hostGame();
-                } else {
-                    document.getElementById('status').innerText = 'Error creating room.';
-                }
-            });
-
-            peer.on('connection', (c) => {
-                conn = c;
-                setupConnectionHandlers();
-            });
-        }
-
-        function joinGame() {
-            const codeInput = document.getElementById('join-id').value.trim();
-            if (codeInput.length !== 4 || isNaN(codeInput)) {
-                return alert('Please enter a valid 4-digit code');
-            }
-
-            isHost = false;
-            peer = new Peer();
-
-            peer.on('open', (id) => {
-                myId = id;
-                document.getElementById('status').innerText = 'CONNECTING...';
-                conn = peer.connect('bonk-' + codeInput);
-                setupConnectionHandlers();
-            });
-
-            peer.on('error', () => {
-                document.getElementById('status').innerText = 'Room not found!';
-            });
-        }
-
-        function setupConnectionHandlers() {
-            conn.on('open', () => {
-                document.getElementById('menu').classList.add('hidden');
-                document.getElementById('game-ui').classList.remove('hidden');
-            });
-
-            conn.on('data', (data) => {
-                if (isHost) {
-                    if (players[data.id]) {
-                        players[data.id].input = data.input;
-                    }
-                } else {
-                    Object.assign(players, data.players);
-                }
-            });
-
-            conn.on('close', () => {
-                alert('Connection lost.');
-                location.reload();
-            });
-        }
-
         const bonkColors = ['#ef4444', '#3b82f6', '#10b981', '#eab308', '#a855f7', '#ec4899'];
 
         function createPlayer(id) {
@@ -250,20 +176,107 @@
             };
         }
 
-        // --- HOST PHYSICS ENGINE ---
-        function startHostLoop() {
-            document.getElementById('game-ui').classList.remove('hidden');
+        // --- HOST SETUP ---
+        function hostGame() {
+            isHost = true;
+            const code = generate4DigitCode();
+            myId = 'bonk-' + code;
 
-            peer.on('connection', (incomingConn) => {
-                conn = incomingConn;
-                setupConnectionHandlers();
-                const newId = conn.peer;
-                players[newId] = createPlayer(newId);
+            peer = new Peer(myId);
+
+            peer.on('open', () => {
+                document.getElementById('status').innerText = `ROOM CODE: ${code}`;
+                document.getElementById('menu-actions').classList.add('hidden');
+
+                // Host is player 1
+                players[myId] = createPlayer(myId);
+                startHostEngine();
             });
+
+            peer.on('error', (err) => {
+                if (err.type === 'unavailable-id') {
+                    peer.destroy();
+                    hostGame(); // Retry with new code
+                } else {
+                    document.getElementById('status').innerText = 'Connection error.';
+                }
+            });
+
+            peer.on('connection', (conn) => {
+                connections.push(conn);
+
+                conn.on('open', () => {
+                    document.getElementById('menu').classList.add('hidden');
+                    document.getElementById('game-ui').classList.remove('hidden');
+                });
+
+                conn.on('data', (data) => {
+                    if (data.type === 'input') {
+                        if (players[data.id]) {
+                            players[data.id].input = data.input;
+                        } else {
+                            // Register new player joining
+                            players[data.id] = createPlayer(data.id);
+                        }
+                    }
+                });
+
+                conn.on('close', () => {
+                    connections = connections.filter(c => c !== conn);
+                    // Remove disconnected player
+                    for (let id in players) {
+                        if (id === conn.peer) delete players[id];
+                    }
+                });
+            });
+        }
+
+        // --- CLIENT SETUP ---
+        function joinGame() {
+            const codeInput = document.getElementById('join-id').value.trim();
+            if (codeInput.length !== 4 || isNaN(codeInput)) {
+                return alert('Please enter a valid 4-digit code.');
+            }
+
+            isHost = false;
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                myId = id;
+                document.getElementById('status').innerText = 'CONNECTING TO HOST...';
+                
+                hostConnection = peer.connect('bonk-' + codeInput);
+
+                hostConnection.on('open', () => {
+                    document.getElementById('menu').classList.add('hidden');
+                    document.getElementById('game-ui').classList.remove('hidden');
+                });
+
+                hostConnection.on('data', (data) => {
+                    if (data.type === 'state') {
+                        Object.assign(players, data.players);
+                    }
+                });
+
+                hostConnection.on('close', () => {
+                    alert('Host closed the room.');
+                    location.reload();
+                });
+            });
+
+            peer.on('error', () => {
+                document.getElementById('status').innerText = 'Room not found!';
+            });
+        }
+
+        // --- HOST PHYSICS TICK (60 FPS) ---
+        function startHostEngine() {
+            document.getElementById('game-ui').classList.remove('hidden');
 
             setInterval(() => {
                 const playerIds = Object.keys(players);
 
+                // 1. Update velocities and positions
                 for (const id of playerIds) {
                     const p = players[id];
                     const inp = p.input || { left: false, right: false, up: false, space: false };
@@ -284,6 +297,7 @@
                     p.x += p.vx;
                     p.y += p.vy;
 
+                    // Platform collision
                     p.onGround = false;
                     if (
                         p.x + p.radius > arena.x &&
@@ -297,6 +311,7 @@
                         p.onGround = true;
                     }
 
+                    // Reset on abyss drop
                     if (p.y > 650) {
                         p.x = 375 + (Math.random() - 0.5) * 200;
                         p.y = 120;
@@ -305,6 +320,7 @@
                     }
                 }
 
+                // 2. Ball-to-ball elastic collisions
                 for (let i = 0; i < playerIds.length; i++) {
                     for (let j = i + 1; j < playerIds.length; j++) {
                         const p1 = players[playerIds[i]];
@@ -342,82 +358,91 @@
                     }
                 }
 
-                if (conn && conn.open) {
-                    conn.send({ players });
-                }
+                // 3. Broadcast state to all connected clients
+                const statePayload = { type: 'state', players };
+                connections.forEach(conn => {
+                    if (conn.open) conn.send(statePayload);
+                });
             }, 1000 / 60);
         }
 
-        // --- RENDER LOOP ---
+        // --- GAME LOOP & RENDERER ---
         function runGameLoop() {
-            if (!isHost && conn && conn.open) {
-                conn.send({ id: myId, input: input });
+            // If client, send our local input to the host
+            if (!isHost && hostConnection && hostConnection.open) {
+                hostConnection.send({ type: 'input', id: myId, input: input });
             }
 
+            // Render graphics
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+            // Background grid lines
             ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
             ctx.lineWidth = 1;
-            for(let x=0; x<canvas.width; x+=40) {
+            for(let x = 0; x < canvas.width; x += 40) {
                 ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
             }
-            for(let y=0; y<canvas.height; y+=40) {
+            for(let y = 0; y < canvas.height; y += 40) {
                 ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
             }
 
+            // Arena platform platform
             ctx.fillStyle = '#1e293b';
             ctx.fillRect(arena.x, arena.y, arena.width, arena.height);
-            
             ctx.strokeStyle = '#000000';
             ctx.lineWidth = 4;
             ctx.strokeRect(arena.x, arena.y, arena.width, arena.height);
-
             ctx.fillStyle = '#f97316';
             ctx.fillRect(arena.x, arena.y, arena.width, 5);
 
+            // Render all active players
             for (const id in players) {
                 const p = players[id];
                 ctx.save();
 
+                // Drop shadow
                 ctx.beginPath();
                 ctx.arc(p.x + 3, p.y + 6, p.radius, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 ctx.fill();
 
+                // Body circle
                 ctx.beginPath();
                 ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
                 ctx.fillStyle = p.color;
                 ctx.fill();
 
+                // Heavy mode outline
                 if (p.heavy) {
                     ctx.strokeStyle = '#ffffff';
                     ctx.lineWidth = 5;
                     ctx.stroke();
                 }
 
+                // Cartoon outline
                 ctx.strokeStyle = '#000000';
                 ctx.lineWidth = 4;
                 ctx.stroke();
 
+                // Glossy reflection highlight
                 ctx.beginPath();
                 ctx.arc(p.x - 6, p.y - 6, p.radius * 0.4, 0, Math.PI * 2);
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
                 ctx.fill();
 
+                // Bonk eyes
                 ctx.fillStyle = '#000';
-                ctx.beginPath();
-                ctx.arc(p.x - 6, p.y - 3, 3.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(p.x + 6, p.y - 3, 3.5, 0, Math.PI * 2);
-                ctx.fill();
+                ctx.beginPath(); ctx.arc(p.x - 6, p.y - 3, 3.5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(p.x + 6, p.y - 3, 3.5, 0, Math.PI * 2); ctx.fill();
 
+                // Mouth
                 ctx.strokeStyle = '#000';
                 ctx.lineWidth = 2.5;
                 ctx.beginPath();
                 ctx.arc(p.x, p.y + 6, 5, 0, Math.PI);
                 ctx.stroke();
 
+                // Nametag
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 11px Rubik, sans-serif';
                 ctx.textAlign = 'center';
