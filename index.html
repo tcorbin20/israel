@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bonk.io - Authentic Replica</title>
+    <!-- PeerJS for P2P Multiplayer -->
+    <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <!-- Google Fonts for Arcade Style Typography -->
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Rubik:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            background-color: #111418;
+            color: #ffffff;
+            font-family: 'Rubik', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        #menu {
+            position: absolute;
+            background: linear-gradient(135deg, #1e2530 0%, #12171f 100%);
+            padding: 40px;
+            border-radius: 20px;
+            border: 4px solid #f97316;
+            text-align: center;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.8), inset 0 2px 5px rgba(255,255,255,0.1);
+            z-index: 10;
+            width: 360px;
+        }
+
+        h1 {
+            font-family: 'Fredoka One', cursive;
+            margin: 0 0 10px 0;
+            font-size: 2.8rem;
+            letter-spacing: 2px;
+            color: #fb923c;
+            text-shadow: 3px 3px 0px #000;
+        }
+
+        .instructions {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        button, input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 10px;
+            border: 3px solid #000;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #000;
+            transition: all 0.05s ease;
+        }
+
+        button:active, input:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 0 #000;
+        }
+
+        .btn-orange { background: #f97316; color: #fff; }
+        .btn-orange:hover { background: #fb923c; }
+        
+        .btn-blue { background: #0ea5e9; color: #fff; }
+        .btn-blue:hover { background: #38bdf8; }
+
+        input {
+            background: #ffffff;
+            color: #000;
+            text-align: center;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        #game-ui {
+            position: absolute;
+            top: 15px;
+            display: flex;
+            gap: 40px;
+            font-family: 'Fredoka One', cursive;
+            font-size: 1.5rem;
+            text-shadow: 2px 2px 0 #000;
+            pointer-events: none;
+        }
+
+        .score-box { background: rgba(0,0,0,0.4); padding: 5px 20px; border-radius: 12px; border: 2px solid rgba(255,255,255,0.1); }
+
+        canvas {
+            background: radial-gradient(circle at center, #263238 0%, #101418 100%);
+            box-shadow: 0 0 50px rgba(0, 0, 0, 0.9);
+            border-radius: 16px;
+            border: 5px solid #2a343d;
+        }
+
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+    <!-- Bonk Style Menu -->
+    <div id="menu">
+        <h1>BONK.IO</h1>
+        <p class="instructions">Push opponents off the ledge!<br><b>Arrows/WASD</b> to move, <b>Up</b> to jump, <b>SPACE</b> to anchor (heavy).</p>
+        <div id="menu-actions">
+            <button class="btn-orange" onclick="hostGame()">CREATE ROOM</button>
+            <div style="margin: 15px 0; font-size: 0.8rem; color: #64748b; font-weight: bold;">- OR -</div>
+            <input type="text" id="join-id" maxlength="4" placeholder="ENTER 4-DIGIT CODE">
+            <button class="btn-blue" onclick="joinGame()">JOIN ROOM</button>
+        </div>
+        <div id="status" style="margin-top: 15px; font-size: 0.9rem; color: #fb923c; font-family: 'Fredoka One';"></div>
+    </div>
+
+    <div id="game-ui" class="hidden">
+        <div class="score-box" id="hud-score">ROUND 1</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="850" height="550"></canvas>
+
+    <script>
+        let peer, conn;
+        let isHost = false;
+        let myId = null;
+
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const input = { left: false, right: false, up: false, space: false };
+        const players = {};
+        
+        const arena = { x: 125, y: 360, width: 600, height: 35 };
+
+        window.addEventListener('keydown', (e) => handleKey(e, true));
+        window.addEventListener('keyup', (e) => handleKey(e, false));
+
+        function handleKey(e, isDown) {
+            if (e.code === 'ArrowLeft' || e.code === 'KeyA') input.left = isDown;
+            if (e.code === 'ArrowRight' || e.code === 'KeyD') input.right = isDown;
+            if (e.code === 'ArrowUp' || e.code === 'KeyW') input.up = isDown;
+            if (e.code === 'Space') {
+                e.preventDefault();
+                input.space = isDown;
+            }
+        }
+
+        function generate4DigitCode() {
+            return Math.floor(1000 + Math.random() * 9000).toString();
+        }
+
+        function hostGame() {
+            isHost = true;
+            const customCode = generate4DigitCode();
+            // Prefix custom code with a unique tag to avoid global PeerJS collisions
+            myId = 'bonk-' + customCode;
+            
+            peer = new Peer(myId);
+            
+            peer.on('open', (id) => {
+                document.getElementById('status').innerText = `ROOM CODE: ${customCode}`;
+                document.getElementById('menu-actions').classList.add('hidden');
+                
+                players[myId] = createPlayer(myId);
+                startHostLoop();
+            });
+
+            peer.on('error', (err) => {
+                // If 4-digit code collision happens, try generating a new one
+                if (err.type === 'unavailable-id') {
+                    peer.destroy();
+                    hostGame();
+                } else {
+                    document.getElementById('status').innerText = 'Error creating room.';
+                }
+            });
+
+            peer.on('connection', (c) => {
+                conn = c;
+                setupConnectionHandlers();
+            });
+        }
+
+        function joinGame() {
+            const codeInput = document.getElementById('join-id').value.trim();
+            if (codeInput.length !== 4 || isNaN(codeInput)) {
+                return alert('Please enter a valid 4-digit code');
+            }
+
+            isHost = false;
+            peer = new Peer();
+
+            peer.on('open', (id) => {
+                myId = id;
+                document.getElementById('status').innerText = 'CONNECTING...';
+                conn = peer.connect('bonk-' + codeInput);
+                setupConnectionHandlers();
+            });
+
+            peer.on('error', () => {
+                document.getElementById('status').innerText = 'Room not found!';
+            });
+        }
+
+        function setupConnectionHandlers() {
+            conn.on('open', () => {
+                document.getElementById('menu').classList.add('hidden');
+                document.getElementById('game-ui').classList.remove('hidden');
+            });
+
+            conn.on('data', (data) => {
+                if (isHost) {
+                    if (players[data.id]) {
+                        players[data.id].input = data.input;
+                    }
+                } else {
+                    Object.assign(players, data.players);
+                }
+            });
+
+            conn.on('close', () => {
+                alert('Connection lost.');
+                location.reload();
+            });
+        }
+
+        const bonkColors = ['#ef4444', '#3b82f6', '#10b981', '#eab308', '#a855f7', '#ec4899'];
+
+        function createPlayer(id) {
+            return {
+                id: id,
+                x: 350 + Math.random() * 150,
+                y: 200,
+                vx: 0,
+                vy: 0,
+                radius: 22,
+                color: bonkColors[Math.floor(Math.random() * bonkColors.length)],
+                heavy: false,
+                onGround: false,
+                input: { left: false, right: false, up: false, space: false }
+            };
+        }
+
+        // --- HOST PHYSICS ENGINE ---
+        function startHostLoop() {
+            document.getElementById('game-ui').classList.remove('hidden');
+
+            peer.on('connection', (incomingConn) => {
+                conn = incomingConn;
+                setupConnectionHandlers();
+                const newId = conn.peer;
+                players[newId] = createPlayer(newId);
+            });
+
+            setInterval(() => {
+                const playerIds = Object.keys(players);
+
+                for (const id of playerIds) {
+                    const p = players[id];
+                    const inp = p.input || { left: false, right: false, up: false, space: false };
+
+                    const speed = 0.65;
+                    if (inp.left) p.vx -= speed;
+                    if (inp.right) p.vx += speed;
+                    if (inp.up && p.onGround) {
+                        p.vy = -11.5;
+                        p.onGround = false;
+                    }
+                    p.heavy = !!inp.space;
+
+                    const gravity = p.heavy ? 0.95 : 0.42;
+                    p.vy += gravity;
+                    p.vx *= 0.91;
+
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    p.onGround = false;
+                    if (
+                        p.x + p.radius > arena.x &&
+                        p.x - p.radius < arena.x + arena.width &&
+                        p.y + p.radius >= arena.y &&
+                        p.y + p.radius <= arena.y + 25 &&
+                        p.vy > 0
+                    ) {
+                        p.y = arena.y - p.radius;
+                        p.vy = 0;
+                        p.onGround = true;
+                    }
+
+                    if (p.y > 650) {
+                        p.x = 375 + (Math.random() - 0.5) * 200;
+                        p.y = 120;
+                        p.vx = 0;
+                        p.vy = 0;
+                    }
+                }
+
+                for (let i = 0; i < playerIds.length; i++) {
+                    for (let j = i + 1; j < playerIds.length; j++) {
+                        const p1 = players[playerIds[i]];
+                        const p2 = players[playerIds[j]];
+
+                        const dx = p2.x - p1.x;
+                        const dy = p2.y - p1.y;
+                        const dist = Math.hypot(dx, dy);
+                        const minDist = p1.radius + p2.radius;
+
+                        if (dist < minDist) {
+                            const overlap = minDist - dist;
+                            const angle = Math.atan2(dy, dx);
+
+                            const m1 = p1.heavy ? 3.5 : 1;
+                            const m2 = p2.heavy ? 3.5 : 1;
+
+                            p1.x -= overlap * Math.cos(angle) * (m2 / (m1 + m2));
+                            p1.y -= overlap * Math.sin(angle) * (m2 / (m1 + m2));
+                            p2.x += overlap * Math.cos(angle) * (m1 / (m1 + m2));
+                            p2.y += overlap * Math.sin(angle) * (m1 / (m1 + m2));
+
+                            const normalX = dx / dist;
+                            const normalY = dy / dist;
+                            const pValue = (p1.vx - p2.vx) * normalX + (p1.vy - p2.vy) * normalY;
+
+                            if (pValue > 0) {
+                                const impulse = (1.5 * pValue) / (m1 + m2);
+                                p1.vx -= impulse * m2 * normalX * 5.5;
+                                p1.vy -= impulse * m2 * normalY * 5.5;
+                                p2.vx += impulse * m1 * normalX * 5.5;
+                                p2.vy += impulse * m1 * normalY * 5.5;
+                            }
+                        }
+                    }
+                }
+
+                if (conn && conn.open) {
+                    conn.send({ players });
+                }
+            }, 1000 / 60);
+        }
+
+        // --- RENDER LOOP ---
+        function runGameLoop() {
+            if (!isHost && conn && conn.open) {
+                conn.send({ id: myId, input: input });
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
+            ctx.lineWidth = 1;
+            for(let x=0; x<canvas.width; x+=40) {
+                ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke();
+            }
+            for(let y=0; y<canvas.height; y+=40) {
+                ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke();
+            }
+
+            ctx.fillStyle = '#1e293b';
+            ctx.fillRect(arena.x, arena.y, arena.width, arena.height);
+            
+            ctx.strokeStyle = '#000000';
+            ctx.lineWidth = 4;
+            ctx.strokeRect(arena.x, arena.y, arena.width, arena.height);
+
+            ctx.fillStyle = '#f97316';
+            ctx.fillRect(arena.x, arena.y, arena.width, 5);
+
+            for (const id in players) {
+                const p = players[id];
+                ctx.save();
+
+                ctx.beginPath();
+                ctx.arc(p.x + 3, p.y + 6, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0,0,0,0.5)';
+                ctx.fill();
+
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                ctx.fillStyle = p.color;
+                ctx.fill();
+
+                if (p.heavy) {
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 5;
+                    ctx.stroke();
+                }
+
+                ctx.strokeStyle = '#000000';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(p.x - 6, p.y - 6, p.radius * 0.4, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
+                ctx.fill();
+
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(p.x - 6, p.y - 3, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(p.x + 6, p.y - 3, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2.5;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y + 6, 5, 0, Math.PI);
+                ctx.stroke();
+
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 11px Rubik, sans-serif';
+                ctx.textAlign = 'center';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 3;
+                ctx.strokeText(id === myId ? 'YOU' : 'PLAYER', p.x, p.y - p.radius - 8);
+                ctx.fillText(id === myId ? 'YOU' : 'PLAYER', p.x, p.y - p.radius - 8);
+
+                ctx.restore();
+            }
+
+            requestAnimationFrame(runGameLoop);
+        }
+
+        runGameLoop();
+    </script>
+</body>
+</html>
